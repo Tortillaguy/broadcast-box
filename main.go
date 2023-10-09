@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/glimesh/broadcast-box/internal/relay"
 	"github.com/glimesh/broadcast-box/internal/webrtc"
 	"github.com/joho/godotenv"
 )
@@ -178,6 +179,8 @@ func main() {
 	}
 
 	webrtc.Configure()
+
+	relay.InitRelay(webrtc.GetWhepClient())
 
 	if os.Getenv("ENABLE_HTTP_REDIRECT") != "" {
 		go func() {

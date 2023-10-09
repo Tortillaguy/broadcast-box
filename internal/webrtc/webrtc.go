@@ -35,6 +35,10 @@ var (
 	apiWhip, apiWhep *webrtc.API
 )
 
+func GetWhepClient() *webrtc.API {
+	return apiWhep
+}
+
 func getStream(streamKey string) (*stream, error) {
 	foundStream, ok := streamMap[streamKey]
 	if !ok {

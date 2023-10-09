@@ -16,6 +16,10 @@ type trackMultiCodec struct {
 	id, rid, streamID string
 }
 
+func GetTrackMultiCodec() *trackMultiCodec {
+	return &trackMultiCodec{id: "video", streamID: "pion"}
+}
+
 func (t *trackMultiCodec) Bind(ctx webrtc.TrackLocalContext) (webrtc.RTPCodecParameters, error) {
 	t.ssrc = ctx.SSRC()
 	t.writeStream = ctx.WriteStream()
