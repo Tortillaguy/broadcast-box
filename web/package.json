@@ -3,15 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@millicast/sdk": "^0.1.39",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "@web3-storage/parse-link-header": "^3.1.0",
     "dotenv-cli": "^6.0.0",
+    "eventsource": "^2.0.2",
+    "mediasoup": "^3.12.13",
+    "mediasoup-client": "^3.6.101",
+    "mediastream-to-webm": "^1.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "stream-browserify": "^3.0.0",
+    "web-vitals": "^2.1.4",
+    "wrtc": "^0.4.7"
   },
   "scripts": {
     "start": "dotenv -e ../.env.development react-scripts start",

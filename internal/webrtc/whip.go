@@ -1,4 +1,4 @@
-package webrtc
+package main
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/glimesh/broadcast-box/internal/udp"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
@@ -35,6 +36,7 @@ func videoWriter(remoteTrack *webrtc.TrackRemote, stream *stream, peerConnection
 	if id == "" {
 		id = videoTrackLabelDefault
 	}
+	log.Println(id)
 
 	if err := addTrack(s, id); err != nil {
 		log.Println(err)
@@ -62,6 +64,21 @@ func videoWriter(remoteTrack *webrtc.TrackRemote, stream *stream, peerConnection
 	rtpBuf := make([]byte, 1500)
 	rtpPkt := &rtp.Packet{}
 	lastTimestamp := uint32(0)
+
+	// Modify the frame here (similar to JavaScript code)
+	frame := rtpBuf
+	message := []byte(udp.GetPayload())
+	start := []byte{0xCA, 0xFE, 0xBA, 0xBE}
+	data := append(start, message...)
+	data = append(data, []byte{0, 0, 0, byte(len(message))}...)
+
+	// Create a new buffer to hold modified frame
+	newFrame := make([]byte, len(frame)+len(data))
+	copy(newFrame, frame)
+	copy(newFrame[len(frame):], data)
+
+	rtpBuf = frame
+
 	for {
 		rtpRead, _, err := remoteTrack.Read(rtpBuf)
 		switch {
@@ -85,6 +102,8 @@ func videoWriter(remoteTrack *webrtc.TrackRemote, stream *stream, peerConnection
 
 		s.whepSessionsLock.RLock()
 		for i := range s.whepSessions {
+			// log.Println("video packet", id, timeDiff, rtpPkt.PaddingSize, rtpPkt.Timestamp)
+			// log.Println(len(rtpPkt.Payload))
 			s.whepSessions[i].sendVideoPacket(rtpPkt, id, timeDiff, isAV1)
 		}
 		s.whepSessionsLock.RUnlock()
@@ -109,7 +128,6 @@ func WHIP(offer, streamKey string) (string, error) {
 			audioWriter(remoteTrack, stream.audioTrack)
 		} else {
 			videoWriter(remoteTrack, stream, peerConnection, stream)
-
 		}
 	})
 

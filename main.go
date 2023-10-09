@@ -1,4 +1,4 @@
-package main
+package foo
 
 import (
 	"encoding/json"
@@ -13,7 +13,9 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/glimesh/broadcast-box/internal/udp"
 	"github.com/glimesh/broadcast-box/internal/webrtc"
+
 	"github.com/joho/godotenv"
 )
 
@@ -66,13 +68,16 @@ func whepHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	offer, err := io.ReadAll(req.Body)
+	// log.Println(offer)
 	if err != nil {
 		logHTTPError(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	answer, whepSessionId, err := webrtc.WHEP(string(offer), streamKey)
+
 	if err != nil {
+		log.Println("ERROR")
 		logHTTPError(res, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -175,6 +180,7 @@ func main() {
 		}
 	}
 
+	go udp.Start()
 	webrtc.Configure()
 
 	if os.Getenv("ENABLE_HTTP_REDIRECT") != "" {

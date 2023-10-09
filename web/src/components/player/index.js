@@ -1,6 +1,8 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { parseLinkHeader } from '@web3-storage/parse-link-header'
 import { useLocation } from 'react-router-dom'
+import { Director, Publish } from '@millicast/sdk';
+// import  {EncodedStream}  from 'mediastream-to-webm'
 
 export const CinemaModeContext = React.createContext(null);
 
@@ -31,6 +33,14 @@ function PlayerPage() {
     </div>
   )
 }
+const tokenGenerator = () => Director.getPublisher(
+  {
+    token: 'my-publishing-token', 
+    streamName: 'my-stream-name'
+  });
+
+const publisher = new Publish('my-stream-name', tokenGenerator);
+
 
 function Player({ cinemaMode }) {
   const videoRef = React.createRef()
@@ -56,19 +66,69 @@ function Player({ cinemaMode }) {
   }, [mediaSrcObject, videoRef])
 
   React.useEffect(() => {
-    const peerConnection = new RTCPeerConnection() // eslint-disable-line
+    const peerConnection = new RTCPeerConnection() 
+    const s = new MediaStream()
 
-    peerConnection.ontrack = function (event) {
-      setMediaSrcObject(event.streams[0])
+    // const audio = peerConnection.addTransceiver('audio', {direction: 'recvonly'})
+    const video = peerConnection.addTransceiver('video', { direction:'recvonly'})
+    // video.setCodecPreferences(RTCRtpReceiver.getCapabilities('video').codecs)
+    // audio.setCodecPreferences(RTCRtpReceiver.getCapabilities('audio').codecs)
+    // video.receiver.createEncodedStreams()
+    console.log(peerConnection.currentLocalDescription)
+
+    peerConnection.ontrack = async function (event) {
+      const encodedStream = event.streams[0]
+      // Create encoded stream and transformer
+      // encodedStream.getVideoTracks()[0
+      console.log(event)
+      console.log({transform: event.receiver.transform})
+      // const p = event.receiver.createEncodedStreams();
+      // event.receiver.transform = new RTCRtpScriptTransform()
+      const transformer = new TransformStream({
+        async transform(frame, controller) {
+            // Convert data from ArrayBuffer to Uint8Array
+            const frame_data = new Uint8Array(frame.data);
+            const total_length = frame_data.length;
+
+            // Shift to left for endianess to retrieve the metadata size from the last
+            // 4 bytes of the buffer
+            let shft = 3;
+            const size = frame_data.slice(total_length - 4)
+                .reduce((acc, v) => acc + (v << shft--), 0);
+ 
+            // Use the byte signal identifying that the remaining data is frame metadata and
+            // confirm that the signal is in the frame.
+            const magic_value = [ 0xCA, 0xFE, 0xBA, 0xBE ];
+            const magic_bytes = frame_data.slice(total_length - size - 2*4, total_length - size - 4);
+            let has_magic_value = magic_value.every((v, index) => v === magic_bytes[index]);
+ 
+            // When there is metadata in the frame, get the metadata array and handle it
+            // as needed by your application.
+            if(has_magic_value) {
+                const data = frame_data.slice(total_length - size - 4, total_length - 4);
+                console.log("received data : ", String.fromCharCode(...data));
+            }
+
+          // Send the frame as is which is supported by video players
+            controller.enqueue(frame);
+        },
+    });
+ 
+    // encodedStream.readable.pipeThrough(transformer)
+    // .pipeTo(encodedStream.writable);
+      
+      setMediaSrcObject(encodedStream)
     }
 
-    peerConnection.addTransceiver('audio', { direction: 'recvonly' })
-    peerConnection.addTransceiver('video', { direction: 'recvonly' })
+    // const availReceiveCodecs = RTCRtpReceiver.getCapabilities("video").codecs;
+    // console.log(availReceiveCodecs)
 
-    peerConnection.createOffer().then(offer => {
+    peerConnection.createOffer({offerToReceiveAudio: false, offerToReceiveVideo: true}).then(offer => {
+      // console.log({offer})
       peerConnection.setLocalDescription(offer)
 
-      fetch(`${process.env.REACT_APP_API_PATH}/whep`, {
+      // console.log(location.pathname.substring(1))
+      fetch(`http://localhost:8080/api/whep`, {
         method: 'POST',
         body: offer.sdp,
         headers: {
@@ -76,16 +136,20 @@ function Player({ cinemaMode }) {
           'Content-Type': 'application/sdp'
         }
       }).then(r => {
-        const parsedLinkHeader = parseLinkHeader(r.headers.get('Link'))
-        setLayerEndpoint(`${window.location.protocol}//${parsedLinkHeader['urn:ietf:params:whep:ext:core:layer'].url}`)
+        // const parsedLinkHeader = parseLinkHeader(r.headers.get('Link'))
+        // console.log(r.headers.get("Link"))
+        // setLayerEndpoint(`${window.location.protocol}//${parsedLinkHeader['urn:ietf:params:whep:ext:core:layer'].url}`)
 
-        const evtSource = new EventSource(`${window.location.protocol}//${parsedLinkHeader['urn:ietf:params:whep:ext:core:server-sent-events'].url}`)
-        evtSource.onerror = err => evtSource.close();
+        // console.log(window.location.protocol)
 
-        evtSource.addEventListener("layers", event => {
-          const parsed = JSON.parse(event.data)
-          setVideoLayers(parsed['1']['layers'].map(l => l.encodingId))
-        })
+        // const evtSource = new EventSource(`${window.location.protocol}//${parsedLinkHeader['urn:ietf:params:whep:ext:core:server-sent-events'].url}`)
+        // evtSource.onerror = err => evtSource.close();
+
+        // evtSource.addEventListener("layers", event => {
+        //   const parsed = JSON.parse(event.data)
+        //   console.log({parsed})
+        //   setVideoLayers(parsed['1']['layers'].map(l => l.encodingId))
+        // })
 
 
         return r.text()

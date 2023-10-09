@@ -1,4 +1,4 @@
-package webrtc
+package main
 
 import (
 	"encoding/json"
@@ -74,6 +74,7 @@ func WHEP(offer, streamKey string) (string, string, error) {
 	streamMapLock.Lock()
 	defer streamMapLock.Unlock()
 	stream, err := getStream(streamKey)
+
 	if err != nil {
 		return "", "", err
 	}
@@ -81,6 +82,8 @@ func WHEP(offer, streamKey string) (string, string, error) {
 	whepSessionId := uuid.New().String()
 
 	videoTrack := &trackMultiCodec{id: "video", streamID: "pion"}
+
+	// log.Println(videoTrack->)
 
 	peerConnection, err := apiWhep.NewPeerConnection(webrtc.Configuration{})
 	if err != nil {
@@ -99,12 +102,28 @@ func WHEP(offer, streamKey string) (string, string, error) {
 		}
 	})
 
-	if _, err = peerConnection.AddTrack(stream.audioTrack); err != nil {
-		return "", "", err
-	}
+	// if _, err = peerConnection.AddTrack(stream.audioTrack); err != nil {
+	// 	return "", "", err
+	// }
 
 	rtpSender, err := peerConnection.AddTrack(videoTrack)
+
+	// log.Println(rtpSender.GetParameters().Encodings)
+	// videoTrack.rid = "2"
+	// err = rtpSender.AddEncoding()
+
+	// log.Println("RID", stream.audioTrack.RID())
+
+	// _, err: rtpSender.AddEncoding(videoTrack)
+	// err = rtpSender.AddEncoding(stream.audioTrack)
+
 	if err != nil {
+		log.Println(err)
+	}
+
+	// log.Println(rtpSender.GetParameters().Codecs)
+	if err != nil {
+		log.Println("bad rtp sender")
 		return "", "", err
 	}
 
@@ -134,11 +153,16 @@ func WHEP(offer, streamKey string) (string, string, error) {
 	}
 
 	gatherComplete := webrtc.GatheringCompletePromise(peerConnection)
+
+	// log.Println("creating answer")
 	answer, err := peerConnection.CreateAnswer(nil)
+	// log.Println(answer)
 
 	if err != nil {
+		log.Println("Error is logged here")
 		return "", "", err
 	} else if err = peerConnection.SetLocalDescription(answer); err != nil {
+		log.Println("error setting local description")
 		return "", "", err
 	}
 
